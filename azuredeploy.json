@@ -1,0 +1,624 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "westus",
+            "allowedValues": [
+                "westus",
+                "eastus",
+                "centralus"
+            ],
+            "metadata": {
+                "description": "Location where all the resources deploy"
+            }
+        },
+        "baseUrl": {
+            "type": "string",
+            "metadata": {
+                "description": "The base URL for dependent deployment files",
+                "artifactsBaseUrl": ""
+            },
+            "defaultValue": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/trend-chef-splunk-security"
+        },
+        "publicIPDomainNameLabelTrendDSM": {
+            "type": "string",
+            "defaultValue": "publicdnstrenddsm",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager unique public DNS prefix"
+            }
+        },
+        "managerPortTrendDSM": {
+            "type": "string",
+            "defaultValue": "443",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager management port"
+            }
+        },
+        "heartbeatPortTrendDSM": {
+            "type": "string",
+            "defaultValue": "4120",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager heartbeat port"
+            }
+        },
+        "vmAdminNameTrendDSM": {
+            "type": "string",
+            "defaultValue": "trend",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager Virtual Machine admin username"
+            }
+        },
+        "vmAdminPasswordTrendDSM": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager Virtual Machine admin password"
+            }
+        },
+        "dbAdminName": {
+            "type": "string",
+            "defaultValue": "trend",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager database admin user"
+            }
+        },
+        "dbAdminPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager database admin password"
+            }
+        },
+        "dsmAdminName": {
+            "type": "string",
+            "defaultValue": "trend",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager application username (To login to Trend DSM from browser)"
+            }
+        },
+        "dsmAdminPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager application password (To login to Trend DSM from browser)"
+            }
+        },
+        "dbName": {
+            "type": "string",
+            "defaultValue": "dsm",
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager database name"
+            }
+        },
+        "vmSizeTrendDSM": {
+            "type": "string",
+            "defaultValue": "Standard_D2_v2",
+            "allowedValues": [
+                "Standard_D2_v2",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2"
+            ],
+            "metadata": {
+                "description": "TrendMicro Deep Security Manager Virtual Machine size"
+            }
+        },
+        "vmSizeSplunk": {
+            "type": "string",
+            "defaultValue": "Standard_D4_v2",
+            "allowedValues": [
+                "Standard_D4_v2"
+            ],
+            "metadata": {
+                "description": "Splunk Enterprise Virtual Machine size"
+            }
+        },
+        "linuxvmcount": {
+            "type": "int",
+            "defaultValue": 1,
+            "metadata": {
+                "description": "Count of Linux Deep Security Agents to deploy"
+            }
+        },
+        "adminUsernameDSAgent": {
+            "type": "string",
+            "defaultValue": "trend",
+            "metadata": {
+                "description": "Linux Deep Security Agent Virtual Machine admin username"
+            }
+        },
+        "adminPasswordDSAgent": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Linux Deep Security Agent Virtual Machine admin password"
+            }
+        },
+        "publicIPDomainNameLabelDSAgent": {
+            "type": "string",
+            "defaultValue": "dnsdsagentlinux",
+            "metadata": {
+                "description": "Linux Deep Security Agent unique public DNS prefix"
+            }
+        },
+        "publicIPDomainNameLabelSplunkEnterprise": {
+            "type": "string",
+            "defaultValue": "publicdnssplunkenterprise",
+            "metadata": {
+                "description": "Splunk Enterprise unique public DNS prefix"
+            }
+        },
+        "adminUsernameDSAgentWindows": {
+            "type": "string",
+            "defaultValue": "trend",
+            "metadata": {
+                "description": "Windows Deep Security Agent Virtual Machine admin username"
+            }
+        },
+        "adminPasswordDSAgentWindows": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Windows Deep Security Agent Virtual Machine admin password"
+            }
+        },
+        "publicIPDomainNameLabelDSAgentWindows": {
+            "type": "string",
+            "defaultValue": "dnsdsagentwindow",
+            "metadata": {
+                "description": "Windows Deep Security Agent unique public DNS prefix"
+            }
+        },
+        "windowsvmcount": {
+            "type": "int",
+            "defaultValue": 1,
+            "metadata": {
+                "description": "Count of Windows Deep Security Agents to deploy"
+            }
+        }
+    },
+    "variables": {
+        "deployment-api-version2": "2015-01-01",
+        "storage-api-version": "2015-06-15",
+        "network-api-version": "2015-06-15",
+        "compute-api-version": "2015-06-15",
+        "virtualNetworkName": "trendMicroP2PVnet",
+        "vnetAddressPrefix": "10.7.0.0/16",
+        "subnet1Name": "trendMicroDSMsubnet",
+        "subnet1Prefix": "10.7.0.0/24",
+        "subnet2Name": "chefAutomateSubnet",
+        "subnet2Prefix": "10.7.1.0/24",
+        "subnet3Name": "splunkEnterprisesubnet",
+        "subnet3Prefix": "10.7.2.0/24",
+        "subnet3StartAddress": "10.7.2.5",
+        "subnet4Name": "vmsubnet",
+        "subnet4Prefix": "10.7.3.0/24",
+        "storageAccountType": "Standard_LRS",
+        "vmSizeDSAWindows": "Standard_D1",
+        "vmNameTrendDSM": "trendMicroDSM",
+        "vmStorageAccountContainerName": "vhds",
+        "publicIPAddressType": "Dynamic",
+        "windowsOSVersion": "2012-R2-Datacenter",
+        "imagePublisherLinux": "Canonical",
+        "publicIPAddressNameTrendDSM": "publicIPTrendDSM",
+        "uniqueString": "[uniquestring(resourceGroup().id)]",
+        "deploymentSizeSplunk": "Standalone",
+        "prefix": "[uniqueString(resourceGroup().id)]",
+        "vmAuthTypeTrendDSM": "password",
+        "imageOfferLinux": "UbuntuServer",
+        "publicIPAddressNameSplunkEnterprise": "publicIPSplunkEnterprise",
+        "nicNameTrendDSM": "[concat(variables('vmNameTrendDSM'),'-nic')]",
+        "ManagerAddress": "[concat(parameters('publicIPDomainNameLabelTrendDSM'),variables('uniqueString'),'.',parameters('location'),'.cloudapp.azure.com')]",
+        "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
+        "subnet1Ref": "[concat(variables('vnetID'),'/subnets/',variables('subnet1Name'))]",
+        "securityGroupNameTrendDSM": "[concat(variables('nicNameTrendDSM'),'-nsg')]",
+        "publisherTrendDSM": "trendmicro",
+        "databaseOption": "new",
+        "offerChoosedTrendDSM": "[variables(concat('offer', parameters('vmSizeTrendDSM')))]",
+        "deployment-api-version": "2015-11-01",
+        "emptyTemplateUrl": "[concat(parameters('baseUrl'),'/nested/empty-resources.json')]",
+        "existingSQLServerName": "",
+        "vmNameDSAgent": "dsalinux",
+        "vmSizeDSAgent": "Standard_D1",
+        "imageOfferWindows": "WindowsServer",
+        "vmNameDSAWindows": "dsawindows",
+        "TenantIdentifier": null,
+        "TenantActivationPassword": null,
+        "ubuntuOSVersion": "14.04.2-LTS",
+        "imagePublisherWindows": "MicrosoftWindowsServer",
+        "subnet4Ref": "[concat(variables('vnetID'),'/subnets/',variables('subnet4Name'))]",
+        "newsqlServerName": "[tolower(concat(variables('vmNameTrendDSM'),uniquestring(resourceGroup().id),'-sql'))]",
+        "linuxConfigurationChoosenTrendDSM": "[variables(concat('linuxConfiguration', variables('vmAuthTypeTrendDSM')))]",
+        "storageAccountName": "[tolower(concat(trim(substring(concat(variables('vmNameTrendDSM'),'       '),0,6)),uniquestring(resourceGroup().id)))]",
+        "tshirtSizeSplunk": "[variables(concat('tshirtSizeSplunk', variables('deploymentSizeSplunk')))]",
+        "tagvalues": {
+            "program": "p2p",
+            "project": "TrendMicro"
+        },
+        "offerStandard_D4_v2": {
+            "vmSize": "Standard_D4_v2",
+            "vmSku": "dxxn100d4v2",
+            "product": "deep-security-vm"
+        },
+        "offerStandard_D5_v2": {
+            "vmSize": "Standard_D5_v2",
+            "vmSku": "dxxn200d5v2",
+            "product": "deep-security-vm"
+        },
+        "offerStandard_D3_v2": {
+            "vmSize": "Standard_D3_v2",
+            "vmSku": "dxxn50d3v2",
+            "product": "deep-security-vm"
+        },
+        "offerStandard_D2_v2": {
+            "vmSize": "Standard_D2_v2",
+            "vmSku": "dxxn25d2v2",
+            "product": "deep-security-vm"
+        },
+        "tshirtSizeSplunkStandalone": {
+            "vmSize": "[parameters('vmSizeSplunk')]",
+            "vmSizeClusterMaster": "Standard_D3",
+            "diskSize": 1023,
+            "standaloneTemplateUrl": "[concat(parameters('baseUrl'), '/nested/trendp2p-splunkenterprise.json')]",
+            "clusterMasterTemplateUrl": "[variables('emptyTemplateUrl')]",
+            "clusterSearchheadTemplateUrl": "[variables('emptyTemplateUrl')]",
+            "clusterPeersTemplateUrl": "[variables('emptyTemplateUrl')]",
+            "clusterPeersCount": 0,
+            "availabilitySetCount": 1,
+            "publicIPAddress": {
+                "name": "[variables('publicIPAddressNameSplunkEnterprise')]",
+                "domainNamePrefix": "[concat(parameters('publicIPDomainNameLabelSplunkEnterprise'),variables('uniqueString'))]",
+                "count": 1,
+                "map": [
+                    ""
+                ]
+            }
+        },
+        "linuxConfigurationpassword": {
+            "disablePasswordAuthentication": "false"
+        },
+        "availabilitySetSettings": {
+            "name": "[concat(variables('virtualNetworkName'), '-aset')]",
+            "count": "[variables('tshirtSizeSplunk').availabilitySetCount]",
+            "fdCount": 3,
+            "udCount": 5
+        },
+        "trendmicroTags": {
+            "type": "object",
+            "provider": "F0253A01-8156-4D41-BD91-E182158D4972"
+        },
+        "chefSoftwareTags": {
+            "type": "object",
+            "provider": "33194f91-eb5f-4110-827a-e95f640a9e46"
+        },
+        "splunkTags": {
+            "type": "object",
+            "provider": "7d69ff10-1a05-4353-b69d-0e87c3382e96"
+        },
+        "quickstartTags": {
+            "type": "object",
+            "name": "trend-chef-splunk-security"
+        }
+    },
+    "resources": [
+        {
+            "comments": "Gene",
+            "name": "vnetstorage",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "[variables('deployment-api-version2')]",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(parameters('baseUrl'), '/nested/trendp2p-vnetstorage.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "storageAccountName": {
+                        "value": "[variables('storageAccountName')]"
+                    },
+                    "storage-api-version": {
+                        "value": "[variables('storage-api-version')]"
+                    },
+                    "storageAccountType": {
+                        "value": "[variables('storageAccountType')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "network-api-version": {
+                        "value": "[variables('network-api-version')]"
+                    },
+                    "virtualNetworkName": {
+                        "value": "[variables('virtualNetworkName')]"
+                    },
+                    "vnetAddressPrefix": {
+                        "value": "[variables('vnetAddressPrefix')]"
+                    },
+                    "subnet1Name": {
+                        "value": "[variables('subnet1Name')]"
+                    },
+                    "subnet1Prefix": {
+                        "value": "[variables('subnet1Prefix')]"
+                    },
+                    "subnet2Name": {
+                        "value": "[variables('subnet2Name')]"
+                    },
+                    "subnet2Prefix": {
+                        "value": "[variables('subnet2Prefix')]"
+                    },
+                    "subnet3Name": {
+                        "value": "[variables('subnet3Name')]"
+                    },
+                    "subnet3Prefix": {
+                        "value": "[variables('subnet3Prefix')]"
+                    },
+                    "subnet4Name": {
+                        "value": "[variables('subnet4Name')]"
+                    },
+                    "subnet4Prefix": {
+                        "value": "[variables('subnet4Prefix')]"
+                    },
+                    "tagvalues": {
+                        "value": "[variables('tagvalues')]"
+                    },
+                    "availabilitySetSettings": {
+                        "value": "[variables('availabilitySetSettings')]"
+                    },
+                    "trendmicroTags": {
+                        "value": "[variables('trendmicroTags')]"
+                    },
+                    "chefSoftwareTags": {
+                        "value": "[variables('chefSoftwareTags')]"
+                    },
+                    "splunkTags": {
+                        "value": "[variables('splunkTags')]"
+                    },
+                    "quickstartTags": {
+                        "value": "[variables('quickstartTags')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "trendmicrodsm",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "[variables('deployment-api-version2')]",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/vnetstorage"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(parameters('baseUrl'), '/nested/trendp2p-trenddsm.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "storageAccountName": {
+                        "value": "[variables('storageAccountName')]"
+                    },
+                    "vmStorageAccountContainerName": {
+                        "value": "[variables('vmStorageAccountContainerName')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "network-api-version": {
+                        "value": "[variables('network-api-version')]"
+                    },
+                    "compute-api-version": {
+                        "value": "[variables('compute-api-version')]"
+                    },
+                    "tagvalues": {
+                        "value": "[variables('tagvalues')]"
+                    },
+                    "publicIPDomainNameLabelTrendDSM": {
+                        "value": "[concat(parameters('publicIPDomainNameLabelTrendDSM'),variables('uniqueString'))]"
+                    },
+                    "publicIPAddressType": {
+                        "value": "[variables('publicIPAddressType')]"
+                    },
+                    "publicIPAddressNameTrendDSM": {
+                        "value": "[variables('publicIPAddressNameTrendDSM')]"
+                    },
+                    "nicNameTrendDSM": {
+                        "value": "[variables('nicNameTrendDSM')]"
+                    },
+                    "virtualNetworkName": {
+                        "value": "[variables('virtualNetworkName')]"
+                    },
+                    "subnet1Ref": {
+                        "value": "[variables('subnet1Ref')]"
+                    },
+                    "securityGroupNameTrendDSM": {
+                        "value": "[variables('securityGroupNameTrendDSM')]"
+                    },
+                    "managerPortTrendDSM": {
+                        "value": "[parameters('managerPortTrendDSM')]"
+                    },
+                    "heartbeatPortTrendDSM": {
+                        "value": "[parameters('heartbeatPortTrendDSM')]"
+                    },
+                    "vmNameTrendDSM": {
+                        "value": "[variables('vmNameTrendDSM')]"
+                    },
+                    "publisherTrendDSM": {
+                        "value": "[variables('publisherTrendDSM')]"
+                    },
+                    "offerChoosedTrendDSM": {
+                        "value": "[variables('offerChoosedTrendDSM')]"
+                    },
+                    "vmAdminNameTrendDSM": {
+                        "value": "[parameters('vmAdminNameTrendDSM')]"
+                    },
+                    "vmAdminPasswordTrendDSM": {
+                        "value": "[parameters('vmAdminPasswordTrendDSM')]"
+                    },
+                    "linuxConfigurationChoosenTrendDSM": {
+                        "value": "[variables('linuxConfigurationChoosenTrendDSM')]"
+                    },
+                    "deployment-api-version": {
+                        "value": "[variables('deployment-api-version')]"
+                    },
+                    "baseUrl": {
+                        "value": "[parameters('baseUrl')]"
+                    },
+                    "databaseOption": {
+                        "value": "[variables('databaseOption')]"
+                    },
+                    "newsqlServerName": {
+                        "value": "[variables('newsqlServerName')]"
+                    },
+                    "existingSQLServerName": {
+                        "value": "[variables('existingSQLServerName')]"
+                    },
+                    "dbAdminName": {
+                        "value": "[parameters('dbAdminName')]"
+                    },
+                    "dbAdminPassword": {
+                        "value": "[parameters('dbAdminPassword')]"
+                    },
+                    "dbName": {
+                        "value": "[parameters('dbName')]"
+                    },
+                    "dsmAdminName": {
+                        "value": "[parameters('dsmAdminName')]"
+                    },
+                    "dsmAdminPassword": {
+                        "value": "[parameters('dsmAdminPassword')]"
+                    },
+                    "trendmicroTags": {
+                        "value": "[variables('trendmicroTags')]"
+                    },
+                    "chefSoftwareTags": {
+                        "value": "[variables('chefSoftwareTags')]"
+                    },
+                    "splunkTags": {
+                        "value": "[variables('splunkTags')]"
+                    },
+                    "quickstartTags": {
+                        "value": "[variables('quickstartTags')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('deployment-api-version2')]",
+            "type": "Microsoft.Resources/deployments",
+            "name": "dsagents",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/vnetstorage",
+                "Microsoft.Resources/deployments/trendmicrodsm"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(parameters('baseUrl'), '/nested/trendp2p-dsagents.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "network-api-version": {
+                        "value": "[variables('network-api-version')]"
+                    },
+                    "compute-api-version": {
+                        "value": "[variables('compute-api-version')]"
+                    },
+                    "vmNameDSAWindows": {
+                        "value": "[variables('vmNameDSAWindows')]"
+                    },
+                    "vmSizeDSAWindows": {
+                        "value": "[variables('vmSizeDSAWindows')]"
+                    },
+                    "adminUsernameDSAgentWindows": {
+                        "value": "[parameters('adminUsernameDSAgentWindows')]"
+                    },
+                    "adminPasswordDSAgentWindows": {
+                        "value": "[parameters('adminPasswordDSAgentWindows')]"
+                    },
+                    "publicIPDomainNameLabelDSAgentWindows": {
+                        "value": "[concat(parameters('publicIPDomainNameLabelDSAgentWindows'),variables('uniqueString'))]"
+                    },
+                    "windowsOSVersion": {
+                        "value": "[variables('windowsOSVersion')]"
+                    },
+                    "windowsvmcount": {
+                        "value": "[parameters('windowsvmcount')]"
+                    },
+                    "vmNameDSAgent": {
+                        "value": "[variables('vmNameDSAgent')]"
+                    },
+                    "vmSizeDSAgent": {
+                        "value": "[variables('vmSizeDSAgent')]"
+                    },
+                    "adminUsernameDSAgent": {
+                        "value": "[parameters('adminUsernameDSAgent')]"
+                    },
+                    "adminPasswordDSAgent": {
+                        "value": "[parameters('adminPasswordDSAgent')]"
+                    },
+                    "publicIPDomainNameLabelDSAgent": {
+                        "value": "[concat(parameters('publicIPDomainNameLabelDSAgent'),variables('uniqueString'))]"
+                    },
+                    "ubuntuOSVersion": {
+                        "value": "[variables('ubuntuOSVersion')]"
+                    },
+                    "linuxvmcount": {
+                        "value": "[parameters('linuxvmcount')]"
+                    },
+                    "ManagerAddress": {
+                        "value": "[variables('ManagerAddress')]"
+                    },
+                    "subnet4Ref": {
+                        "value": "[variables('subnet4Ref')]"
+                    },
+                    "imagePublisherWindows": {
+                        "value": "[variables('imagePublisherWindows')]"
+                    },
+                    "imageOfferWindows": {
+                        "value": "[variables('imageOfferWindows')]"
+                    },
+                    "imagePublisherLinux": {
+                        "value": "[variables('imagePublisherLinux')]"
+                    },
+                    "imageOfferLinux": {
+                        "value": "[variables('imageOfferLinux')]"
+                    },
+                    "storageAccountName": {
+                        "value": "[variables('storageAccountName')]"
+                    },
+                    "vmStorageAccountContainerName": {
+                        "value": "[variables('vmStorageAccountContainerName')]"
+                    },
+                    "ActivationPort": {
+                        "value": "[parameters('heartbeatPortTrendDSM')]"
+                    },
+                    "TenantIdentifier": {
+                        "value": "[variables('TenantIdentifier')]"
+                    },
+                    "TenantActivationPassword": {
+                        "value": "[variables('TenantActivationPassword')]"
+                    },
+                    "tagvalues": {
+                        "value": "[variables('tagvalues')]"
+                    },
+                    "trendmicroTags": {
+                        "value": "[variables('trendmicroTags')]"
+                    },
+                    "chefSoftwareTags": {
+                        "value": "[variables('chefSoftwareTags')]"
+                    },
+                    "splunkTags": {
+                        "value": "[variables('splunkTags')]"
+                    },
+                    "quickstartTags": {
+                        "value": "[variables('quickstartTags')]"
+                    }
+                }
+            }
+        }
+    ]
+}
