@@ -268,7 +268,7 @@
       "properties": {
         "publisher": "TrendMicro.DeepSecurity",
         "type": "TrendMicroDSA",
-        "typeHandlerVersion": "9.6",
+        "typeHandlerVersion": "10.0",
         "autoUpgradeMinorVersion": true,
         "settings": {
           "DSMname": "[parameters('ManagerAddress')]",
@@ -339,7 +339,7 @@
       }
     },
     {
-      "apiVersion": "[parameters('compute-api-version')]",
+      "apiVersion": "2016-04-30-preview",
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[concat(parameters('vmNameDSAgent'),copyindex())]",
       "location": "[parameters('location')]",
@@ -391,7 +391,7 @@
       }
     },
     {
-      "apiVersion": "[parameters('compute-api-version')]",
+      "apiVersion": "2016-04-30-preview",
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "name": "[concat(parameters('vmNameDSAgent'), copyindex(),'/Installation')]",
       "location": "[parameters('location')]",
